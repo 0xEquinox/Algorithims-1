@@ -6,11 +6,11 @@
 
 import java.util.ArrayList;
 
-class Cord {
+class Direction {
     public int dx;
     public int dy;
 
-    public Cord(int dx, int dy) {
+    public Direction(int dx, int dy) {
         this.dx = dx;
         this.dy = dy;
     }
@@ -18,8 +18,9 @@ class Cord {
 
 public class BoggleSolver {
     private final Trie dictionary;
-    private final Cord[] neighbors;
-    private final ArrayList<String> validWords;
+    private final Direction[] neighbors;
+    private ArrayList<String> validWords;
+    private boolean[][] visited;
 
     public BoggleSolver(String[] dictionary) {
         this.dictionary = new Trie();
@@ -28,15 +29,15 @@ public class BoggleSolver {
         }
 
         // Populate neighbors
-        this.neighbors = new Cord[] {
-                new Cord(-1, -1),
-                new Cord(-1, 0),
-                new Cord(-1, 1),
-                new Cord(0, -1),
-                new Cord(0, 1),
-                new Cord(1, -1),
-                new Cord(1, 0),
-                new Cord(1, 1),
+        this.neighbors = new Direction[] {
+                new Direction(-1, -1),
+                new Direction(-1, 0),
+                new Direction(-1, 1),
+                new Direction(0, -1),
+                new Direction(0, 1),
+                new Direction(1, -1),
+                new Direction(1, 0),
+                new Direction(1, 1),
                 };
 
         this.validWords = new ArrayList<>();
@@ -46,57 +47,62 @@ public class BoggleSolver {
         return !(x < 0 || x >= xBound || y < 0 || y >= yBound);
     }
 
-    private ArrayList<Cord> getNeighbors(int row, int col, int xBound, int yBound) {
-        ArrayList<Cord> neighbors = new ArrayList<>();
+    private ArrayList<Direction> getNeighbors(int row, int col, int xBound, int yBound) {
+        ArrayList<Direction> tileNeighbors = new ArrayList<>();
 
-        for (Cord cord : this.neighbors) {
+        for (Direction cord : this.neighbors) {
             int nextRow = row + cord.dx;
             int nextCol = col + cord.dy;
             if (isValidCord(nextRow, nextCol, xBound, yBound)) {
-                neighbors.add(new Cord(nextRow, nextCol));
+                tileNeighbors.add(new Direction(nextRow, nextCol));
             }
         }
 
-        return neighbors;
+        return tileNeighbors;
     }
 
-    // Convert 2d coordinate into 1 d
-    private int twoToOneDConvert(int row, int col, int cols) {
-        return row + col * cols;
-    }
-
-    private void dfs(int row, int col, ArrayList<Integer> visitedPath, String current,
+    private void dfs(int row, int col, String current,
                      BoggleBoard board) {
+
         char letter = board.getLetter(row, col);
 
-        visitedPath.add(twoToOneDConvert(row, col, board.cols()));
 
         current += letter;
-        // Qu edge case
         if (letter == 'Q') current += 'U';
 
+        if (!dictionary.hasKeyWithPrefix(current)) return;
+
         if (current.length() > 2 && !validWords.contains(current) && dictionary.contains(
-                new StringBuilder(current)))
+                current)) {
             validWords.add(current);
+        }
 
-        if (!dictionary.hasKeysWithPrefix(new StringBuilder(current))) return; // it is complete
-
-        ArrayList<Cord> neighbors = getNeighbors(row, col, board.rows(), board.cols());
-        for (Cord neighbor : neighbors) {
-            if (!visitedPath.contains(twoToOneDConvert(neighbor.dx, neighbor.dy, board.cols()))) {
-                dfs(neighbor.dx, neighbor.dy, (ArrayList<Integer>) visitedPath.clone(), current,
-                    board);
+        visited[row][col] = true;
+        ArrayList<Direction> tileNeighbors = getNeighbors(row, col, board.rows(), board.cols());
+        for (Direction neighbor : tileNeighbors) {
+            if (!visited[neighbor.dx][neighbor.dy]) {
+                dfs(neighbor.dx, neighbor.dy, current, board);
             }
         }
+        visited[row][col] = false;
     }
 
     public Iterable<String> getAllValidWords(BoggleBoard board) {
+        this.visited = new boolean[board.rows()][board.cols()];
         for (int row = 0; row < board.rows(); row++) {
             for (int col = 0; col < board.cols(); col++) {
-                dfs(row, col, new ArrayList<>(), "", board);
+                dfs(row, col, "", board);
             }
         }
-        return validWords;
+
+        ArrayList<String> validWordsClone = new ArrayList<>();
+
+        for (int i = 0; i < validWords.size(); i++) {
+            validWordsClone.add(validWords.get(i));
+        }
+
+        this.validWords = new ArrayList<>();
+        return validWordsClone;
     }
 
     public int scoreOf(String word) {
